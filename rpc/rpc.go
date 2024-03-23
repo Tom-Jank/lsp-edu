@@ -1,14 +1,13 @@
 package rpc
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"strconv"
+    "bytes"
+    "encoding/json"
+    "errors"
+    "fmt"
+    "strconv"
 )
 
-// Encode message into a desired format 
 func EncodeMessage(message any) string {
     content, err := json.Marshal(message)
     if err != nil {
@@ -22,15 +21,13 @@ type BaseMessage struct {
     Method string `json:"method"`
 }
 
-// Decode the message and fetch method name, and content len 
 func DecodeMessage(message []byte) (string, []byte, error) {
     header, content, found := bytes.Cut(message, []byte{'\r', '\n', '\r', '\n'})
     if !found {
         return "", nil, errors.New("Separator not found")    
     }
-    
-    contentLengthBytes := header[len("Content-Length: "):]
-    contentLength, err := strconv.Atoi(string(contentLengthBytes))
+
+    contentLength, err := btoi(header[len("Content-Length: "):])
     if err != nil {
         return "", nil, err
     }
@@ -41,4 +38,29 @@ func DecodeMessage(message []byte) (string, []byte, error) {
     }
 
     return baseMessage.Method, content[:contentLength], nil
+}
+
+func Split(data []byte, _ bool) (advance int, token []byte, err error) {
+    header, content, found := bytes.Cut(data, []byte{'\r', '\n', '\r', '\n'})
+    if !found {
+        return 0, nil, nil
+    }
+
+    contentLength, err := btoi(header[len("Content-Length: "):])
+
+    if err != nil {
+        return 0, nil, err
+    }
+    if len(content) < contentLength {
+        return 0, nil, nil
+    }
+
+    totalLength := len(header) + 4 + contentLength
+
+    return totalLength, data[:totalLength], nil
+}
+
+// convert bytes to integer 
+func btoi(contentBytes []byte) (int, error) {
+    return strconv.Atoi(string(contentBytes))
 }
